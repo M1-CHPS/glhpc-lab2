@@ -1,0 +1,6 @@
+*.o
+*.a
+mytransform
+venv
+results
+output
