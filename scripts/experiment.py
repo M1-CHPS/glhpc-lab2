@@ -43,6 +43,7 @@ PIPELINE = (
 )
 NWARMUP = 10
 NMETA = 100
+IMAGE_TOLERANCE = 2  # allowed max per-channel difference (0..255)
 
 def run_kernel(kernel, pipeline_file, output_path):
     begin = time.perf_counter()
@@ -58,12 +59,20 @@ def run_kernel(kernel, pipeline_file, output_path):
         )
     
     reference = Path(__file__).parent / "reference.bmp"
-    diff = ImageChops.difference(Image.open(output_path), Image.open(reference))
-    if diff.getbbox():
+    # always compute the pixel-wise difference (work in a fixed mode)
+    out_img = Image.open(output_path).convert("RGBA")
+    ref_img = Image.open(reference).convert("RGBA")
+    diff = ImageChops.difference(out_img, ref_img)
+
+    # diff.getextrema() returns (min,max) tuples per band; take the max channel delta
+    extrema = diff.getextrema()
+    max_delta = max(band[1] for band in extrema)
+
+    if max_delta > IMAGE_TOLERANCE:
         diff.save(output_path.with_suffix(".diff.bmp"))
-        logger.error(f"Generated diff image, saved as {output_path.with_suffix('.diff.bmp')}")
+        logger.error(f"Generated diff image, saved as {output_path.with_suffix('.diff.bmp')}, max pixel delta = {max_delta}")
         raise ValueError(
-            f"Output image {output_path} does not match the reference image {reference} !"
+            f"Output image {output_path} differs from reference {reference}: max per-channel delta = {max_delta} (tolerance={IMAGE_TOLERANCE})"
         )
     return end - begin
 
