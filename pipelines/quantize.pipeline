@@ -1,0 +1,3 @@
+0 -1 load images/image1.bmp
+1 0 quantize 8
+2 1 save output/image1_quantized.bmp

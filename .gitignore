@@ -1,6 +1,29 @@
+
+
+# IDE/editor files
+.vscode/
+.idea/
+.DS_Store
+
+# Build output
 *.o
+*.so
+*.out
 *.a
 mytransform
-venv
-results
-output
+build/
+install/
+
+# CMake Specific files in case the student
+# Breaks his cmake install
+CMakeCache.txt
+CMakeFiles
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Python scripts/image output
+venv/
+results/
+output/
