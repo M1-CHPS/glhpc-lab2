@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """_summary_
-    This script will execute the mytransform application with a predefine pipeline
-    To benchmark the execution time of the student's implementation.
+This script will execute the mytransform application with a predefine pipeline
+To benchmark the execution time of the student's implementation.
 """
 
 from pathlib import Path
@@ -17,7 +17,6 @@ import logging
 
 from rich.console import Console
 from rich.logging import RichHandler
-from rich.table import Table
 from rich.progress import Progress
 import time
 
@@ -41,15 +40,15 @@ PIPELINE = (
     "11 10 grayscale\n"
     "12 11 save {output}/output.bmp\n"
 )
-NWARMUP = 10
-NMETA = 100
+
+NWARMUP = 5
+NMETA = 20
 IMAGE_TOLERANCE = 2  # allowed max per-channel difference (0..255)
+
 
 def run_kernel(kernel, pipeline_file, output_path):
     begin = time.perf_counter()
-    subprocess.check_output(
-        [str(kernel.resolve()), str(pipeline_file)]
-    )
+    subprocess.check_output([str(kernel.resolve()), str(pipeline_file)])
     end = time.perf_counter()
     # Check if the output is valid
 
@@ -57,7 +56,7 @@ def run_kernel(kernel, pipeline_file, output_path):
         raise FileNotFoundError(
             f"Could not find {output_path} ! Your program most likely crashed or did not produce the expected output."
         )
-    
+
     reference = Path(__file__).parent / "reference.bmp"
     # always compute the pixel-wise difference (work in a fixed mode)
     out_img = Image.open(output_path).convert("RGBA")
@@ -86,9 +85,7 @@ def run_experiment(kernel, pipeline_file, output):
         task = progress.add_task("Running warmup...", total=NWARMUP)
 
         for _ in range(NWARMUP):
-            subprocess.check_output(
-                [str(kernel.resolve()), str(pipeline_file)]
-            )
+            subprocess.check_output([str(kernel.resolve()), str(pipeline_file)])
             progress.update(task, advance=1)
 
         task = progress.add_task("Running experiment...", total=NMETA)
@@ -98,6 +95,7 @@ def run_experiment(kernel, pipeline_file, output):
             timings.append((i, elapsed_time))
             progress.update(task, advance=1)
     return pd.DataFrame(timings, columns=["Iteration", "Time"])
+
 
 def plot(data, output_path):
     logger.info(f"Plotting execution time distribution...")
@@ -115,39 +113,43 @@ def plot(data, output_path):
     fig.savefig(output_path / "timings.png")
     logger.info(f"Plot saved to {output_path / 'timings.png'}")
 
+
 def update_comparison():
     merged = []
     for file in Path("./results").iterdir():
         if not file.is_dir():
             continue
         df = pd.read_csv(file / "timings.csv")
-        merged.append((file.name, df.mean()["Time"]))
+        df["run"] = file.name
+        merged.append(df)
 
     if not merged or len(merged) < 2:
         logger.warning("Skipping comparison update, not enough runs found.")
         return
 
-    merged_df = pd.DataFrame(merged, columns=["Run", "Average Time"])
-    merged_df.sort_values(by="Average Time", inplace=True, ascending=False)
-    
+    merged_df = pd.concat(merged, ignore_index=True)
+
     logger.info("Updating comparison...")
     fig, ax = plt.subplots(figsize=(10, 6), layout="constrained")
     sns.barplot(
         data=merged_df,
-        x="Run",
-        y="Average Time",
+        x="run",
+        y="Time",
         ax=ax,
-        hue="Run",
+        hue="run",
         palette="magma",
         lw=2,
         edgecolor="black",
     )
+
     for container in ax.containers:
-        ax.bar_label(container, fmt="%.2fs", label_type="edge", fontsize=10, padding=3)
+        ax.bar_label(container, fmt="%.2fs", padding=8)
+
     ax.set_title("Average Execution Time Comparison")
     ax.set_xlabel("Versions")
     ax.set_ylabel("Average Time (seconds)")
-    fig.savefig(Path("./results/comparison.png"))
+    fig.savefig(Path("./results/comparison.png"), bbox_inches="tight", dpi=200, pad_inches=0.1)
+
 
 def main(args):
     global PIPELINE
@@ -155,13 +157,17 @@ def main(args):
     pipeline_file = args.output / "pipeline.pipeline"
     with open(pipeline_file, "w") as f:
         f.write(PIPELINE)
+
     timings = run_experiment(args.kernel, pipeline_file, args.output)
 
     output_path = args.output / "timings.csv"
     timings.to_csv(output_path, index=False)
+
     plot(timings, args.output)
     update_comparison()
+
     logger.info(f"Experiment completed. Results saved to {output_path}")
+
 
 def setup_logging():
     """Setup logging configuration."""
@@ -175,6 +181,7 @@ def setup_logging():
     global logger
     logger = logging.getLogger("rich")
     logger.info("Logging setup complete.")
+
     return logger
 
 
@@ -193,9 +200,7 @@ def parse_args():
     args = parser.parse_args()
 
     if not args.kernel.exists():
-        raise FileNotFoundError(
-            f"Kernel file {args.kernel} does not exist ! Are you sure you ran make ?"
-        )
+        raise FileNotFoundError(f"Kernel file {args.kernel} does not exist ! Are you sure you ran make ?")
     if not args.output.exists():
         args.output.mkdir(parents=True, exist_ok=True)
 

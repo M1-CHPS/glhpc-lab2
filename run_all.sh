@@ -33,8 +33,7 @@ create_virtual_env() {
 
     if [ ! -d "venv" ] || [ ! -f "venv/bin/activate" ] ; then
         echo "Creating virtual environment..."
-        pip install virtualenv
-        python3 -m virtualenv ./venv
+        python3 -m venv ./venv
         source ./venv/bin/activate
         pip install --upgrade pip
         pip install pandas numpy matplotlib seaborn rich
